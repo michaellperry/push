@@ -1,6 +1,7 @@
 ﻿function Register-VSTeam {
 param(
-    [string] $Name = ""
+    [string] $Name = "",
+    [string] $PersonalAccessToken = ""
 )
 
     If ($Name -eq "")
@@ -23,14 +24,23 @@ param(
     If (($Teams.SelectSingleNode("team[@name='$Name']")) -ne $Null)
     {
         Write-Host "The team $Name is already registered."
-        break
+    }
+    Else
+    {
+        Write-Host "Registering https://$Name.visualstudio.com"
+        $Team = $Config.CreateElement("team")
+        $Team.SetAttribute("name", $Name)
+        $Teams.AppendChild($Team)
+        $Config.Save("$pwd\VSTSConfig.xml")
     }
 
-    Write-Host "Registering https://$Name.visualstudio.com"
-    $Team = $Config.CreateElement("team")
-    $Team.SetAttribute("name", $Name)
-    $Teams.AppendChild($Team)
-    $Config.Save("$pwd\VSTSConfig.xml")
+    If ($PersonalAccessToken -eq "")
+    {
+        Write-Host "You will need to create a personal access token. Go to https://$Name.visualstudio.com/_details/security/tokens to create one. Then run:"
+        Write-Host
+        Write-Host "    Register-VSTeam $Name xxxx"
+        break
+    }
 }
 
 Export-ModuleMember -Function Register-VSTeam
