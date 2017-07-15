@@ -1,4 +1,6 @@
-﻿function Register-VSTS {
+﻿Add-Type -Assembly "System.IO.Compression.Filesystem"
+
+function Register-VSTS {
 param(
     [string] $TeamName = "",
     [string] $ProjectName = "",
@@ -190,10 +192,18 @@ param(
         -Uri "https://$($Config.TeamName).visualstudio.com/DefaultCollection/$($Config.ProjectName)/_apis/build/builds/$BuildId/artifacts?api-version=2.0"
     $ArtifactUrl = $Artifacts.Value | ?{ $_.Name -eq $ArtifactName } | %{ $_.Resource.DownloadUrl }
 
+    If (Test-Path "$pwd\DeploymentFiles")
+    {
+        Remove-Item "$pwd\DeploymentFiles" -Recurse
+    }
+    mkdir "$pwd\DeploymentFiles"
+
     $Artifacts = Invoke-RestMethod `
         -Headers @{ Authorization = $Config.BasicAuth } `
         -Uri $ArtifactUrl `
-        -OutFile "$pwd\WebDeploymentPackage.zip"
+        -OutFile "$pwd\DeploymentFiles\WebDeploymentPackage.zip"
+
+    [IO.Compression.ZipFile]::ExtractToDirectory("$pwd\DeploymentFiles\WebDeploymentPackage.zip", "$pwd\DeploymentFiles")
 }
 
 Export-ModuleMember -Function Register-VSTS, Get-Builds, Push-Build
