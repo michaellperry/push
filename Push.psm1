@@ -1,4 +1,5 @@
-﻿function Register-VSTeam {
+﻿
+function Register-VSTeam {
 param(
     [string] $Name = "",
     [string] $PersonalAccessToken = ""
@@ -34,13 +35,18 @@ param(
         $Config.Save("$pwd\VSTSConfig.xml")
     }
 
-    If ($PersonalAccessToken -eq "")
+    $Credential = Get-StoredCredential -Target "$Name.visualstudio.com"
+    If ($Credential -eq $Null)
     {
-        Write-Host "You will need to create a personal access token. Go to https://$Name.visualstudio.com/_details/security/tokens to create one. Then run:"
-        Write-Host
-        Write-Host "    Register-VSTeam $Name xxxx"
-        break
+        If ($PersonalAccessToken -eq "")
+        {
+            Write-Host "You will need to create a personal access token. Go to https://$Name.visualstudio.com/_details/security/tokens to create one. Then run:"
+            Write-Host
+            Write-Host "    Register-VSTeam $Name xxxx"
+            break
+        }
     }
+
 }
 
 Export-ModuleMember -Function Register-VSTeam
