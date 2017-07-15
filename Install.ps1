@@ -1,10 +1,12 @@
-﻿$PushModule = Get-Module Push
-If ($PushModule -ne $Null)
+﻿If ((Get-Module CredentialManager) -eq $Null)
+{
+    Install-Module CredentialManager -Force
+}
+
+If ((Get-Module Push) -ne $Null)
 {
     Remove-Module Push
 }
-
-Install-Module CredentialManager -Force
 
 Import-Module .\Push.psm1
 
