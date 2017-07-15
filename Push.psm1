@@ -20,6 +20,11 @@ param(
     }
 
     [xml]$Config = Get-Content "$pwd\VSTSConfig.xml"
+    $Teams = $Config.FirstChild
+    $Team = $Config.CreateElement("team")
+    $Team.SetAttribute("name", $Name)
+    $Teams.AppendChild($Team)
+    $Config.Save("$pwd\VSTSConfig.xml")
 }
 
 Export-ModuleMember -Function Register-VSTeam
