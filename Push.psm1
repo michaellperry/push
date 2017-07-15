@@ -26,10 +26,15 @@ param(
             break
         }
 
+        Write-Host "Registering https://$Name.visualstudio.com"
         $TeamName = $Config.CreateAttribute("name")
         $TeamName.Value = $Name
         $Team.Attributes.Append($TeamName)
         $Config.Save("$pwd\VSTSConfig.xml")
+    }
+    Else
+    {
+        $Name = $TeamName.Value
     }
 
     $Credential = Get-StoredCredential -Target "$Name.visualstudio.com"
@@ -42,6 +47,9 @@ param(
             Write-Host "    Register-VSTeam $Name xxxx"
             break
         }
+
+        Write-Host "Saving personal access token for https://$Name.visualstudio.com"
+        $Credential = New-StoredCredential -Target "$Name.visualstudio.com" -UserName $Name -Password $PersonalAccessToken -Persist Enterprise
     }
 
 }
