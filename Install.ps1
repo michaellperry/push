@@ -11,4 +11,4 @@ If ((Get-Module Push) -ne $Null)
 Import-Module .\Push.psm1
 
 Write-Host
-Write-Host "To get started, run Register-VSTeam"
+Write-Host "To get started, run Register-VSTS"
