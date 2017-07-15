@@ -1,8 +1,8 @@
-﻿
-function Register-VSTS {
+﻿function Register-VSTS {
 param(
     [string] $TeamName = "",
-    [string] $ProjectName = ""
+    [string] $ProjectName = "",
+    [string] $BuildDefinitionName = ""
 )
 
     If ((Test-Path "$pwd\VSTSConfig.xml") -eq $False)
@@ -69,6 +69,10 @@ param(
             break
         }
 
+        $Project = Invoke-RestMethod `
+            -Headers @{ Authorization = $BasicAuth } `
+            -Uri "https://$TeamName.visualstudio.com/DefaultCollection/_apis/projects/$($ProjectName)?api-version=2.0"
+
         Write-Host "Registering https://$TeamName.visualstudio.com project $ProjectName."
         $ProjectNameAttribute = $Config.CreateAttribute("projectName")
         $ProjectNameAttribute.Value = $ProjectName
@@ -78,9 +82,45 @@ param(
     Else
     {
         $ProjectName = $ProjectNameAttribute.Value
-
-        Write-Output "Team https://$TeamName.visualstudio.com, project $ProjectName is registered."
     }
+
+    $BuildDefinitionNameAttribute = $VSTS.Attributes["buildDefinitionName"]
+    If ($BuildDefinitionNameAttribute -eq $Null)
+    {
+        If ($BuildDefinitionName -eq "")
+        {
+            $BuildDefinitions = Invoke-RestMethod `
+                -Headers @{ Authorization = $BasicAuth } `
+                -Uri "https://$TeamName.visualstudio.com/DefaultCollection/$ProjectName/_apis/build/definitions?api-version=2.0"
+
+            Write-Host "Select a build definition and run:"
+            Write-Host
+            Write-Host "   Register-VSTS -BuildDefinitionName xxxx"
+
+            $BuildDefinitions.Value | Format-Table Name
+
+            break
+        }
+    }
+    Else
+    {
+        $BuildDefinitionName = $BuildDefinitionNameAttribute.Value
+    }
+
+    Write-Output "Team https://$TeamName.visualstudio.com, project $ProjectName, build definition $BuildDefinitionName is registered."
 }
 
-Export-ModuleMember -Function Register-VSTS
+function Get-Builds {
+    [xml]$Config = Get-Content "$pwd\VSTSConfig.xml"
+    $TeamName = $Config.vsts.teamName
+    $ProjectName = $Config.vsts.projectName
+    $Credential = Get-StoredCredential -Target "$TeamName.visualstudio.com"
+    $Password = $Credential.GetNetworkCredential().Password
+    $BasicAuth = 'Basic ' + [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("$($Credential.UserName):$($Password)"))
+
+    $Project = Invoke-RestMethod `
+        -Headers @{ Authorization = $BasicAuth } `
+        -Uri "https://$TeamName.visualstudio.com/DefaultCollection/_apis/projects?api-version=2.0&name=$ProjectName"
+}
+
+Export-ModuleMember -Function Register-VSTS, Get-Builds
