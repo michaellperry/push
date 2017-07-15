@@ -12,6 +12,14 @@ param(
     }
 
     Write-Host "Registering https://$Name.visualstudio.com"
+    If ((Test-Path "$pwd\VSTSConfig.xml") -eq $False)
+    {
+        [xml]$EmptyConfig = New-Object System.XML.XMLDocument
+        $EmptyConfig.LoadXml("<teams></teams>")
+        $EmptyConfig.Save("$pwd\VSTSConfig.xml")
+    }
+
+    [xml]$Config = Get-Content "$pwd\VSTSConfig.xml"
 }
 
 Export-ModuleMember -Function Register-VSTeam
