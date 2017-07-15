@@ -133,13 +133,26 @@ function Get-Builds {
     [xml]$Config = Get-Content "$pwd\VSTSConfig.xml"
     $TeamName = $Config.vsts.teamName
     $ProjectName = $Config.vsts.projectName
+    $BuildDefinitionName = $Config.vsts.buildDefinitionName
+
     $Credential = Get-StoredCredential -Target "$TeamName.visualstudio.com"
     $Password = $Credential.GetNetworkCredential().Password
     $BasicAuth = 'Basic ' + [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("$($Credential.UserName):$($Password)"))
 
-    $Project = Invoke-RestMethod `
+    $BuildDefinitions = Invoke-RestMethod `
         -Headers @{ Authorization = $BasicAuth } `
-        -Uri "https://$TeamName.visualstudio.com/DefaultCollection/_apis/projects?api-version=2.0&name=$ProjectName"
+        -Uri "https://$TeamName.visualstudio.com/DefaultCollection/$ProjectName/_apis/build/definitions?api-version=2.0&name=$([System.Web.HttpUtility]::UrlEncode($BuildDefinitionName))"
+    $BuildDefinitionId = $BuildDefinitions.Value[0].Id
+
+    $Builds = Invoke-RestMethod `
+        -Headers @{ Authorization = $BasicAuth } `
+        -Uri "https://$TeamName.visualstudio.com/DefaultCollection/$ProjectName/_apis/build/builds?definitions=$BuildDefinitionId&$('$top')=10&api-version=2.0"
+
+    $Builds.Value | Format-Table `
+        @{ Label = "Build"; Expression = { $_.BuildNumber } }, `
+        @{ Label = "For"; Expression = { $_.RequestedFor.DisplayName } }, `
+        @{ Label = "Result"; Expression = { $_.Result } }, `
+        @{ Label = "Completed"; Expression = { [DateTime]::Parse($_.FinishTime).ToString("G") } }
 }
 
 Export-ModuleMember -Function Register-VSTS, Get-Builds
