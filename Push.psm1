@@ -170,7 +170,10 @@ function Get-Builds {
 
 function Push-Build {
 param(
+    [Parameter(Mandatory=$True)]
     [string] $Environment,
+
+    [Parameter(Mandatory=$True)]
     [string] $Build
 )
 
@@ -204,6 +207,10 @@ param(
         -OutFile "$pwd\DeploymentFiles\WebDeploymentPackage.zip"
 
     [IO.Compression.ZipFile]::ExtractToDirectory("$pwd\DeploymentFiles\WebDeploymentPackage.zip", "$pwd\DeploymentFiles")
+
+    $ZipFile = Get-Item "$pwd\DeploymentFiles\WebDeploymentPackage\*.zip" | %{ $_.FullName }
+
+    [IO.Compression.ZipFile]::ExtractToDirectory($ZipFile, "$pwd\DeploymentFiles\Deploy")
 }
 
 Export-ModuleMember -Function Register-VSTS, Get-Builds, Push-Build
