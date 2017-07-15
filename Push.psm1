@@ -101,6 +101,25 @@ param(
 
             break
         }
+
+        $BuildDefinitions = Invoke-RestMethod `
+            -Headers @{ Authorization = $BasicAuth } `
+            -Uri "https://$TeamName.visualstudio.com/DefaultCollection/$ProjectName/_apis/build/definitions?api-version=2.0&name=$([System.Web.HttpUtility]::UrlEncode($BuildDefinitionName))"
+
+        If ($BuildDefinitions.Value.Count -eq 0)
+        {
+            Write-Host "The build definition $BuildDefinitionName was not found in https://$TeamName.visualstudio.com, project $ProjectName. To list the build definitions again run:"
+            Write-Host
+            Write-Host "   Register-VSTS"
+
+            break
+        }
+
+        Write-Host "Registering build definition $BuildDefinitionName."
+        $BuildDefinitionNameAttribute = $Config.CreateAttribute("buildDefinitionName")
+        $BuildDefinitionNameAttribute.Value = $BuildDefinitionName
+        $VSTS.Attributes.Append($BuildDefinitionNameAttribute)
+        $Config.Save("$pwd\VSTSConfig.xml")
     }
     Else
     {
