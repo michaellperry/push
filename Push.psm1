@@ -129,7 +129,7 @@ param(
     Write-Output "Team https://$TeamName.visualstudio.com, project $ProjectName, build definition $BuildDefinitionName is registered."
 }
 
-function Get-Builds {
+function Get-VSTSConfig {
     [xml]$Config = Get-Content "$pwd\VSTSConfig.xml"
     $TeamName = $Config.vsts.teamName
     $ProjectName = $Config.vsts.projectName
@@ -139,14 +139,25 @@ function Get-Builds {
     $Password = $Credential.GetNetworkCredential().Password
     $BasicAuth = 'Basic ' + [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("$($Credential.UserName):$($Password)"))
 
+    return @{ `
+        TeamName = $TeamName; `
+        ProjectName = $ProjectName; `
+        BuildDefinitionName = $BuildDefinitionName; `
+        BasicAuth = $BasicAuth; `
+    }
+}
+
+function Get-Builds {
+    $Config = Get-VSTSConfig
+
     $BuildDefinitions = Invoke-RestMethod `
-        -Headers @{ Authorization = $BasicAuth } `
-        -Uri "https://$TeamName.visualstudio.com/DefaultCollection/$ProjectName/_apis/build/definitions?api-version=2.0&name=$([System.Web.HttpUtility]::UrlEncode($BuildDefinitionName))"
+        -Headers @{ Authorization = $Config.BasicAuth } `
+        -Uri "https://$($Config.TeamName).visualstudio.com/DefaultCollection/$($Config.ProjectName)/_apis/build/definitions?api-version=2.0&name=$([System.Web.HttpUtility]::UrlEncode($Config.BuildDefinitionName))"
     $BuildDefinitionId = $BuildDefinitions.Value[0].Id
 
     $Builds = Invoke-RestMethod `
-        -Headers @{ Authorization = $BasicAuth } `
-        -Uri "https://$TeamName.visualstudio.com/DefaultCollection/$ProjectName/_apis/build/builds?definitions=$BuildDefinitionId&$('$top')=10&api-version=2.0"
+        -Headers @{ Authorization = $Config.BasicAuth } `
+        -Uri "https://$($Config.TeamName).visualstudio.com/DefaultCollection/$($Config.ProjectName)/_apis/build/builds?definitions=$BuildDefinitionId&$('$top')=10&api-version=2.0"
 
     $Builds.Value | Format-Table `
         @{ Label = "Build"; Expression = { $_.BuildNumber } }, `
@@ -155,4 +166,34 @@ function Get-Builds {
         @{ Label = "Completed"; Expression = { [DateTime]::Parse($_.FinishTime).ToString("G") } }
 }
 
-Export-ModuleMember -Function Register-VSTS, Get-Builds
+function Push-Build {
+param(
+    [string] $Environment,
+    [string] $Build
+)
+
+    $Config = Get-VSTSConfig
+    $ArtifactName = "WebDeploymentPackage"
+
+    $BuildDefinitions = Invoke-RestMethod `
+        -Headers @{ Authorization = $Config.BasicAuth } `
+        -Uri "https://$($Config.TeamName).visualstudio.com/DefaultCollection/$($Config.ProjectName)/_apis/build/definitions?api-version=2.0&name=$([System.Web.HttpUtility]::UrlEncode($Config.BuildDefinitionName))"
+    $BuildDefinitionId = $BuildDefinitions.Value[0].Id
+
+    $Builds = Invoke-RestMethod `
+        -Headers @{ Authorization = $Config.BasicAuth } `
+        -Uri "https://$($Config.TeamName).visualstudio.com/DefaultCollection/$($Config.ProjectName)/_apis/build/builds?definitions=$BuildDefinitionId&buildNumber=$Build&api-version=2.0"
+    $BuildId = $Builds.Value[0].Id
+
+    $Artifacts = Invoke-RestMethod `
+        -Headers @{ Authorization = $Config.BasicAuth } `
+        -Uri "https://$($Config.TeamName).visualstudio.com/DefaultCollection/$($Config.ProjectName)/_apis/build/builds/$BuildId/artifacts?api-version=2.0"
+    $ArtifactUrl = $Artifacts.Value | ?{ $_.Name -eq $ArtifactName } | %{ $_.Resource.DownloadUrl }
+
+    $Artifacts = Invoke-RestMethod `
+        -Headers @{ Authorization = $Config.BasicAuth } `
+        -Uri $ArtifactUrl `
+        -OutFile "$pwd\WebDeploymentPackage.zip"
+}
+
+Export-ModuleMember -Function Register-VSTS, Get-Builds, Push-Build
