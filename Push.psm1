@@ -11,7 +11,6 @@ param(
         break
     }
 
-    Write-Host "Registering https://$Name.visualstudio.com"
     If ((Test-Path "$pwd\VSTSConfig.xml") -eq $False)
     {
         [xml]$EmptyConfig = New-Object System.XML.XMLDocument
@@ -21,6 +20,13 @@ param(
 
     [xml]$Config = Get-Content "$pwd\VSTSConfig.xml"
     $Teams = $Config.FirstChild
+    If (($Teams.SelectSingleNode("team[@name='$Name']")) -ne $Null)
+    {
+        Write-Host "The team $Name is already registered."
+        break
+    }
+
+    Write-Host "Registering https://$Name.visualstudio.com"
     $Team = $Config.CreateElement("team")
     $Team.SetAttribute("name", $Name)
     $Teams.AppendChild($Team)
