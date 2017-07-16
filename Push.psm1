@@ -239,12 +239,18 @@ param(
     [xml]$Config = Get-Content "$pwd\EnvironmentsConfig.xml"
     $Environment = $config.SelectSingleNode("/environments/environment[@name='$EnvironmentName']")
     $WebServerName = $Environment.webServerName
+    $SqlServerName = $Environment.sqlServerName
+    $DatabaseName = $Environment.databaseName
 
     $WebServerCredential = Get-StoredCredential -Target $WebServerName
+    $SqlServerCredential = Get-StoredCredential -Target $SqlServerName
+    $Password = $SqlServerCredential.GetNetworkCredential().Password
+    $ConnectionString = "Data Source=$SqlServerName;Initial Catalog=$DatabaseName;User ID=$($SqlServerCredential.UserName);Password=$Password;"
 
     Return @{ `
         WebServerName = $WebServerName; `
         WebServerCredential = $WebServerCredential; `
+        ConnectionString = $ConnectionString; `
     }
 }
 
@@ -334,23 +340,30 @@ param(
         -Uri "https://$($Config.TeamName).visualstudio.com/DefaultCollection/$($Config.ProjectName)/_apis/build/builds/$BuildId/artifacts?api-version=2.0"
     $ArtifactUrl = $Artifacts.Value | ?{ $_.Name -eq $ArtifactName } | %{ $_.Resource.DownloadUrl }
 
-    <#
     If (Test-Path "$pwd\DeploymentFiles")
     {
         Remove-Item "$pwd\DeploymentFiles" -Recurse
     }
     mkdir "$pwd\DeploymentFiles" | Out-Null
+    mkdir "$pwd\DeploymentFiles\Download" | Out-Null
+    mkdir "$pwd\DeploymentFiles\Extract" | Out-Null
+    mkdir "$pwd\DeploymentFiles\Upload" | Out-Null
 
     $Artifacts = Invoke-RestMethod `
         -Headers @{ Authorization = $Config.BasicAuth } `
         -Uri $ArtifactUrl `
-        -OutFile "$pwd\DeploymentFiles\WebDeploymentPackage.zip"
-    #>
+        -OutFile "$pwd\DeploymentFiles\Download\WebDeploymentPackage.zip"
 
-    # [IO.Compression.ZipFile]::ExtractToDirectory("$pwd\DeploymentFiles\WebDeploymentPackage.zip", "$pwd\DeploymentFiles")
-    $WebDeployCommand = Get-Item "$pwd\DeploymentFiles\WebDeploymentPackage\*.deploy.cmd" | %{ $_.Name }
-    $ZipFile = Get-Item "$pwd\DeploymentFiles\WebDeploymentPackage\*.zip" | %{ $_.FullName }
-    # [IO.Compression.ZipFile]::ExtractToDirectory($ZipFile, "$pwd\DeploymentFiles\Deploy")
+    [IO.Compression.ZipFile]::ExtractToDirectory("$pwd\DeploymentFiles\Download\WebDeploymentPackage.zip", "$pwd\DeploymentFiles\Extract")
+    $WebDeployCommand = Get-Item "$pwd\DeploymentFiles\Extract\WebDeploymentPackage\*.deploy.cmd" | %{ $_.Name }
+    $SetParametersFile = Get-Item "$pwd\DeploymentFiles\Extract\WebDeploymentPackage\*.SetParameters.xml" | %{ $_.FullName }
+
+    [xml]$Parameters = Get-Content $SetParametersFile
+    $ConnectionStringAttribute = $Parameters.SelectSingleNode("/parameters/setParameter[@name='DefaultConnection-Web.config Connection String']")
+    $ConnectionStringAttribute.Value = $EnvironmentConfig.ConnectionString
+    $Parameters.Save($SetParametersFile)
+
+    [IO.Compression.ZipFile]::CreateFromDirectory("$pwd\DeploymentFiles\Extract", "$pwd\DeploymentFiles\Upload\WebDeploymentPackage.zip")
 
     $PSSessionOptions = New-PSSessionOption –SkipCACheck -SkipCNCheck
     $PSSession = New-PSSession $EnvironmentConfig.WebServerName -credential $EnvironmentConfig.WebServerCredential -UseSSL -SessionOption $PSSessionOptions
@@ -361,21 +374,18 @@ param(
             Remove-Item "C:\DeploymentFiles" -Recurse
         }
         mkdir "C:\DeploymentFiles" | Out-Null
+        mkdir "C:\DeploymentFiles\Download" | Out-Null
+        mkdir "C:\DeploymentFiles\Extract" | Out-Null
     }
-    Copy-Item -Path "$pwd\DeploymentFiles\WebDeploymentPackage.zip" -Destination "C:\DeploymentFiles" -ToSession $PSSession
+    Copy-Item -Path "$pwd\DeploymentFiles\Upload\WebDeploymentPackage.zip" -Destination "C:\DeploymentFiles\Download" -ToSession $PSSession
     Invoke-Command -Session $PSSession -ScriptBlock {
         Add-Type -Assembly System.IO.Compression.FileSystem
-        [IO.Compression.ZipFile]::ExtractToDirectory("C:\DeploymentFiles\WebDeploymentPackage.zip", "C:\DeploymentFiles")
-        cd C:\DeploymentFiles\WebDeploymentPackage
+        [IO.Compression.ZipFile]::ExtractToDirectory("C:\DeploymentFiles\Download\WebDeploymentPackage.zip", "C:\DeploymentFiles\Extract")
+        cd C:\DeploymentFiles\Extract\WebDeploymentPackage
         & ".\$Using:WebDeployCommand" @( "/Y" )
     }
 
     Remove-PSSession $PSSession
-
-    # $ManifestFile = Get-Item "$pwd\DeploymentFiles\WebDeploymentPackage\*.SourceManifest.xml" | %{ $_.FullName }
-    # [xml]$Manifest = Get-Content $ManifestFile
-    # $IisAppPath = $Manifest.sitemanifest.IisApp.path
-    # $WebConfigPath = "$pwd\DeploymentFiles\Deploy\Content\$($IisAppPath.Substring(0,1))_C\$($IisAppPath.Substring(3))\web.config"
 }
 
 Export-ModuleMember -Function Register-VSTS, Register-Environment, Enable-WebServerFeatures, Get-Builds, Push-Build
