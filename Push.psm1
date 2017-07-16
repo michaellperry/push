@@ -295,7 +295,7 @@ param(
     {
         Remove-Item "$pwd\DeploymentFiles" -Recurse
     }
-    mkdir "$pwd\DeploymentFiles"
+    mkdir "$pwd\DeploymentFiles" | Out-Null
 
     $Artifacts = Invoke-RestMethod `
         -Headers @{ Authorization = $Config.BasicAuth } `
@@ -309,6 +309,14 @@ param(
 
     $PSSessionOptions = New-PSSessionOption –SkipCACheck -SkipCNCheck
     $PSSession = New-PSSession $EnvironmentConfig.WebServerName -credential $EnvironmentConfig.WebServerCredential -UseSSL -SessionOption $PSSessionOptions
+
+    Invoke-Command -Session $PSSession -ScriptBlock {
+        If (Test-Path "C:\DeploymentPackages")
+        {
+            Remove-Item "C:\DeploymentPackages" -Recurse
+        }
+        mkdir "C:\DeploymentPackages" | Out-Null
+    }
 
 
     Remove-PSSession $PSSession
