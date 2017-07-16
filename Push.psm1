@@ -234,9 +234,13 @@ param(
 
     [xml]$Config = Get-Content "$pwd\EnvironmentsConfig.xml"
     $Environment = $config.SelectSingleNode("/environments/environment[@name='$EnvironmentName']")
+    $WebServerName = $Environment.webServerName
+
+    $WebServerCredential = Get-StoredCredential -Target $WebServerName
 
     Return @{ `
-        WebServerName = $Environment.webServerName; `
+        WebServerName = $WebServerName; `
+        WebServerCredential = $WebServerCredential; `
     }
 }
 
@@ -269,6 +273,7 @@ param(
 )
 
     $Config = Get-VSTSConfig
+    $EnvironmentConfig = Get-EnvironmentConfig($Environment)
     $ArtifactName = "WebDeploymentPackage"
 
     $BuildDefinitions = Invoke-RestMethod `
@@ -301,6 +306,12 @@ param(
 
     $ZipFile = Get-Item "$pwd\DeploymentFiles\WebDeploymentPackage\*.zip" | %{ $_.FullName }
     [IO.Compression.ZipFile]::ExtractToDirectory($ZipFile, "$pwd\DeploymentFiles\Deploy")
+
+    $PSSessionOptions = New-PSSessionOption –SkipCACheck -SkipCNCheck
+    $PSSession = New-PSSession $EnvironmentConfig.WebServerName -credential $EnvironmentConfig.WebServerCredential -UseSSL -SessionOption $PSSessionOptions
+
+
+    Remove-PSSession $PSSession
 
     # $ManifestFile = Get-Item "$pwd\DeploymentFiles\WebDeploymentPackage\*.SourceManifest.xml" | %{ $_.FullName }
     # [xml]$Manifest = Get-Content $ManifestFile
