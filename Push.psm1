@@ -24,7 +24,7 @@ param(
         {
             Write-Host "This command registers a VSTS Team hosted at https://xxxx.visualstudio.com. Please provide the name (the xxxx part)."
             Write-Host
-            Write-Host "    Register-VSTeam -TeamName xxxx"
+            Write-Host "    Register-VSTS -TeamName xxxx"
             break
         }
 
@@ -265,9 +265,9 @@ param(
         $DatabaseName = $DatabaseNameAttribute.Value
     }
 
-    Write-Host "The $EnvironmentName environment is registered. If this is a new environment, you might need to enable web server features:"
+    Write-Host "The $Name environment is registered. If this is a new environment, you might need to enable web server features:"
     Write-Host
-    Write-Host "    Enable-WebServerFeatures $EnvironmentName"
+    Write-Host "    Enable-WebServerFeatures $Name"
 
     return
 }
