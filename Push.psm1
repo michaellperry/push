@@ -305,7 +305,7 @@ param(
     #>
 
     # [IO.Compression.ZipFile]::ExtractToDirectory("$pwd\DeploymentFiles\WebDeploymentPackage.zip", "$pwd\DeploymentFiles")
-
+    $WebDeployCommand = Get-Item "$pwd\DeploymentFiles\WebDeploymentPackage\*.deploy.cmd" | %{ $_.Name }
     $ZipFile = Get-Item "$pwd\DeploymentFiles\WebDeploymentPackage\*.zip" | %{ $_.FullName }
     # [IO.Compression.ZipFile]::ExtractToDirectory($ZipFile, "$pwd\DeploymentFiles\Deploy")
 
@@ -313,14 +313,19 @@ param(
     $PSSession = New-PSSession $EnvironmentConfig.WebServerName -credential $EnvironmentConfig.WebServerCredential -UseSSL -SessionOption $PSSessionOptions
 
     Invoke-Command -Session $PSSession -ScriptBlock {
-        If (Test-Path "C:\DeploymentPackages")
+        If (Test-Path "C:\DeploymentFiles")
         {
-            Remove-Item "C:\DeploymentPackages" -Recurse
+            Remove-Item "C:\DeploymentFiles" -Recurse
         }
-        mkdir "C:\DeploymentPackages" | Out-Null
+        mkdir "C:\DeploymentFiles" | Out-Null
     }
-    Copy-Item -Path $ZipFile -Destination "C:\DeploymentPackages" -ToSession $PSSession
-
+    Copy-Item -Path "$pwd\DeploymentFiles\WebDeploymentPackage.zip" -Destination "C:\DeploymentFiles" -ToSession $PSSession
+    Invoke-Command -Session $PSSession -ScriptBlock {
+        Add-Type -Assembly System.IO.Compression.FileSystem
+        [IO.Compression.ZipFile]::ExtractToDirectory("C:\DeploymentFiles\WebDeploymentPackage.zip", "C:\DeploymentFiles")
+        cd C:\DeploymentFiles\WebDeploymentPackage
+        & ".\$Using:WebDeployCommand" @( "/Y" )
+    }
 
     Remove-PSSession $PSSession
 
