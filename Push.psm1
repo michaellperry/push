@@ -374,6 +374,17 @@ function Get-Builds {
         @{ Label = "For"; Expression = { $_.RequestedFor.DisplayName } }, `
         @{ Label = "Result"; Expression = { $_.Result } }, `
         @{ Label = "Completed"; Expression = { [DateTime]::Parse($_.FinishTime).ToString("G") } }
+
+    [array]$SuccessfulBuilds = $Builds.Value | ?{ $_.Result -eq "succeeded" } | %{ $_.BuildNumber }
+    If ($SuccessfulBuilds.Count -ne 0)
+    {
+        [xml]$Config = Get-Content "$pwd\EnvironmentsConfig.xml"
+        $Environment = $config.SelectSingleNode("/environments/environment")
+
+        Write-Host "You can deploy the latest successful build:"
+        Write-Host
+        Write-Host "   Push-Build $($Environment.name) $($SuccessfulBuilds[0])"
+    }
 }
 
 function Push-Build {
