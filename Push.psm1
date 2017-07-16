@@ -458,6 +458,7 @@ param(
         [IO.Compression.ZipFile]::ExtractToDirectory("C:\DeploymentFiles\Download\WebDeploymentPackage.zip", "C:\DeploymentFiles\Extract")
         cd C:\DeploymentFiles\Extract\WebDeploymentPackage
         & ".\$Using:WebDeployCommand" @( "/Y" )
+        C:\inetpub\wwwroot\bin\Migrate.ps1 $Using:EnvironmentConfig.ConnectionString
     }
 
     Remove-PSSession $PSSession
