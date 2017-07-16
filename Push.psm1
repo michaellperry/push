@@ -122,6 +122,11 @@ param(
         $BuildDefinitionNameAttribute.Value = $BuildDefinitionName
         $VSTS.Attributes.Append($BuildDefinitionNameAttribute)
         $Config.Save("$pwd\VSTSConfig.xml")
+
+        Write-Host
+        Write-Host "Your next step should be to register an environment to which to push builds."
+        Write-Host
+        Write-Host "    Register-Environment"
     }
     Else
     {
@@ -130,6 +135,44 @@ param(
 
     Write-Output "Team https://$TeamName.visualstudio.com, project $ProjectName, build definition $BuildDefinitionName is registered."
 }
+
+function Register-Environment {
+param(
+    [string] $Name = ""
+)
+
+    If ($Name -eq "")
+    {
+        Write-Host "This command registers a new environment to which to push builds. Specify an environment name:"
+        Write-Host
+        Write-Host "    Register-Environment xxxx"
+
+        break
+    }
+
+    If ((Test-Path "$pwd\EnvironmentsConfig.xml") -eq $False)
+    {
+        [xml]$EmptyConfig = New-Object System.XML.XMLDocument
+        $EmptyConfig.LoadXml("<environments></environments>")
+        $EmptyConfig.Save("$pwd\EnvironmentsConfig.xml")
+    }
+
+    [xml]$Config = Get-Content "$pwd\EnvironmentsConfig.xml"
+    $Environments = $Config.FirstChild
+    $Environment = $Environments.SelectSingleNode("environment[@name='$Name']")
+    If ($Environment -eq $Null)
+    {
+        $Environment = $Config.CreateElement("environment")
+        $EnvironmentNameAttribute = $Config.CreateAttribute("name")
+        $EnvironmentNameAttribute.Value = $Name
+        $Environment.Attributes.Append($EnvironmentNameAttribute)
+        $Environments.AppendChild($Environment)
+        $Config.Save("$pwd\EnvironmentsConfig.xml")
+    }
+}
+
+
+
 
 function Get-VSTSConfig {
     [xml]$Config = Get-Content "$pwd\VSTSConfig.xml"
@@ -209,8 +252,12 @@ param(
     [IO.Compression.ZipFile]::ExtractToDirectory("$pwd\DeploymentFiles\WebDeploymentPackage.zip", "$pwd\DeploymentFiles")
 
     $ZipFile = Get-Item "$pwd\DeploymentFiles\WebDeploymentPackage\*.zip" | %{ $_.FullName }
-
     [IO.Compression.ZipFile]::ExtractToDirectory($ZipFile, "$pwd\DeploymentFiles\Deploy")
+
+    # $ManifestFile = Get-Item "$pwd\DeploymentFiles\WebDeploymentPackage\*.SourceManifest.xml" | %{ $_.FullName }
+    # [xml]$Manifest = Get-Content $ManifestFile
+    # $IisAppPath = $Manifest.sitemanifest.IisApp.path
+    # $WebConfigPath = "$pwd\DeploymentFiles\Deploy\Content\$($IisAppPath.Substring(0,1))_C\$($IisAppPath.Substring(3))\web.config"
 }
 
-Export-ModuleMember -Function Register-VSTS, Get-Builds, Push-Build
+Export-ModuleMember -Function Register-VSTS, Register-Environment, Get-Builds, Push-Build

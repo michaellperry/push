@@ -1,4 +1,6 @@
-﻿If ((Get-Module CredentialManager) -eq $Null)
+﻿Import-Module CredentialManager
+
+If ((Get-Module CredentialManager) -eq $Null)
 {
     Install-Module CredentialManager -Force
 }
