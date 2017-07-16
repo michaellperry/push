@@ -291,6 +291,7 @@ param(
         -Uri "https://$($Config.TeamName).visualstudio.com/DefaultCollection/$($Config.ProjectName)/_apis/build/builds/$BuildId/artifacts?api-version=2.0"
     $ArtifactUrl = $Artifacts.Value | ?{ $_.Name -eq $ArtifactName } | %{ $_.Resource.DownloadUrl }
 
+    <#
     If (Test-Path "$pwd\DeploymentFiles")
     {
         Remove-Item "$pwd\DeploymentFiles" -Recurse
@@ -301,11 +302,12 @@ param(
         -Headers @{ Authorization = $Config.BasicAuth } `
         -Uri $ArtifactUrl `
         -OutFile "$pwd\DeploymentFiles\WebDeploymentPackage.zip"
+    #>
 
-    [IO.Compression.ZipFile]::ExtractToDirectory("$pwd\DeploymentFiles\WebDeploymentPackage.zip", "$pwd\DeploymentFiles")
+    # [IO.Compression.ZipFile]::ExtractToDirectory("$pwd\DeploymentFiles\WebDeploymentPackage.zip", "$pwd\DeploymentFiles")
 
     $ZipFile = Get-Item "$pwd\DeploymentFiles\WebDeploymentPackage\*.zip" | %{ $_.FullName }
-    [IO.Compression.ZipFile]::ExtractToDirectory($ZipFile, "$pwd\DeploymentFiles\Deploy")
+    # [IO.Compression.ZipFile]::ExtractToDirectory($ZipFile, "$pwd\DeploymentFiles\Deploy")
 
     $PSSessionOptions = New-PSSessionOption –SkipCACheck -SkipCNCheck
     $PSSession = New-PSSession $EnvironmentConfig.WebServerName -credential $EnvironmentConfig.WebServerCredential -UseSSL -SessionOption $PSSessionOptions
@@ -317,6 +319,7 @@ param(
         }
         mkdir "C:\DeploymentPackages" | Out-Null
     }
+    Copy-Item -Path $ZipFile -Destination "C:\DeploymentPackages" -ToSession $PSSession
 
 
     Remove-PSSession $PSSession
