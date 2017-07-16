@@ -269,6 +269,9 @@ param(
       "Web-ISAPI-Ext", `
       "Web-ISAPI-Filter", `
       "Web-Mgmt-Console", `
+      "NET-Framework-Features", `
+      "NET-Framework-Core", `
+      "NET-HTTP-Activation", `
       "NET-Framework-45-ASPNET")
 
     $PSSessionOptions = New-PSSessionOption –SkipCACheck -SkipCNCheck
@@ -365,7 +368,7 @@ param(
         Add-Type -Assembly System.IO.Compression.FileSystem
         [IO.Compression.ZipFile]::ExtractToDirectory("C:\DeploymentFiles\WebDeploymentPackage.zip", "C:\DeploymentFiles")
         cd C:\DeploymentFiles\WebDeploymentPackage
-        $env:MSDeployPath = "C:\DeploymentFiles"
+        $env:MSDeployPath = "C:\DeploymentFiles\"
         & ".\$Using:WebDeployCommand" @( "/Y" )
     }
 
