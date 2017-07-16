@@ -138,7 +138,8 @@ param(
 
 function Register-Environment {
 param(
-    [string] $Name = ""
+    [string] $Name = "",
+    [string] $WebServerName = ""
 )
 
     If ($Name -eq "")
@@ -169,6 +170,28 @@ param(
         $Environments.AppendChild($Environment)
         $Config.Save("$pwd\EnvironmentsConfig.xml")
     }
+
+    $WebServerNameAttribute = $Environment.Attributes["webServerName"]
+    If ($WebServerNameAttribute -eq $Null)
+    {
+        If ($WebServerName -eq "")
+        {
+            Write-Host "Provide the name of the web server."
+            Write-Host
+            Write-Host "    Register-Environment $Name -WebServerName xxxx"
+
+            break
+        }
+
+        $WebServerNameAttribute = $Config.CreateAttribute("webServerName")
+        $WebServerNameAttribute.Value = $WebServerName
+        $Environment.Attributes.Append($WebServerNameAttribute)
+        $Config.Save("$pwd\EnvironmentsConfig.xml")
+    }
+    Else
+    {
+        $WebServerName = $WebServerNameAttribute.Value
+    }
 }
 
 
@@ -189,6 +212,19 @@ function Get-VSTSConfig {
         ProjectName = $ProjectName; `
         BuildDefinitionName = $BuildDefinitionName; `
         BasicAuth = $BasicAuth; `
+    }
+}
+
+function Get-EnvironmentConfig {
+param(
+    [string] $EnvironmentName
+)
+
+    [xml]$Config = Get-Content "$pwd\EnvironmentsConfig.xml"
+    $Environment = $config.SelectSingleNode("/environments/environment[@name='$EnvironmentName']")
+
+    Return @{ `
+        WebServerName = $Environment.webServerName; `
     }
 }
 
