@@ -134,12 +134,16 @@ param(
     }
 
     Write-Output "Team https://$TeamName.visualstudio.com, project $ProjectName, build definition $BuildDefinitionName is registered."
+
+    return
 }
 
 function Register-Environment {
 param(
     [string] $Name = "",
-    [string] $WebServerName = ""
+    [string] $WebServerName = "",
+    [string] $SqlServerName = "",
+    [string] $DatabaseName = ""
 )
 
     If ($Name -eq "")
@@ -205,9 +209,67 @@ param(
         $WebServerCredential = New-StoredCredential -Target $WebServerName -UserName $WebServerUserName -SecurePassword $WebServerPassword -Persist Enterprise
     }
 
+    $SqlServerNameAttribute = $Environment.Attributes["sqlServerName"]
+    If ($SqlServerNameAttribute -eq $Null)
+    {
+        If ($SqlServerName -eq "")
+        {
+            Write-Host "Now provide the name of the SQL server."
+            Write-Host
+            Write-Host "    Register-Environment $Name -SqlServerName xxxx"
+
+            break
+        }
+
+        $SqlServerNameAttribute = $Config.CreateAttribute("sqlServerName")
+        $SqlServerNameAttribute.Value = $SqlServerName
+        $Environment.Attributes.Append($SqlServerNameAttribute)
+        $Config.Save("$pwd\EnvironmentsConfig.xml")
+    }
+    Else
+    {
+        $SqlServerName = $SqlServerNameAttribute.Value
+    }
+
+    $SqlServerCredential = Get-StoredCredential -Target $SqlServerName
+    If ($SqlServerCredential -eq $Null)
+    {
+        Write-Host "Please provide the user name and password for the SQL server $SqlServerName so that I can migrate the database and generate the connection string."
+        Write-Host
+
+        $SqlServerUserName = Read-Host "User name"
+        $SqlServerPassword = Read-Host "Password" -AsSecureString
+        Write-Host "Saving login credentials for $SqlServerName."
+        $SqlServerCredential = New-StoredCredential -Target $SqlServerName -UserName $SqlServerUserName -SecurePassword $SqlServerPassword -Persist Enterprise
+    }
+
+    $DatabaseNameAttribute = $Environment.Attributes["databaseName"]
+    If ($DatabaseNameAttribute -eq $Null)
+    {
+        If ($DatabaseName -eq "")
+        {
+            Write-Host "Finally, I'll need the name of the application database."
+            Write-Host
+            Write-Host "    Register-Environment $Name -DatabaseName xxxx"
+
+            break
+        }
+
+        $DatabaseNameAttribute = $Config.CreateAttribute("databaseName")
+        $DatabaseNameAttribute.Value = $DatabaseName
+        $Environment.Attributes.Append($DatabaseNameAttribute)
+        $Config.Save("$pwd\EnvironmentsConfig.xml")
+    }
+    Else
+    {
+        $DatabaseName = $DatabaseNameAttribute.Value
+    }
+
     Write-Host "The $EnvironmentName environment is registered. If this is a new environment, you might need to enable web server features:"
     Write-Host
     Write-Host "    Enable-WebServerFeatures $EnvironmentName"
+
+    return
 }
 
 
@@ -247,7 +309,7 @@ param(
     $Password = $SqlServerCredential.GetNetworkCredential().Password
     $ConnectionString = "Data Source=$SqlServerName;Initial Catalog=$DatabaseName;User ID=$($SqlServerCredential.UserName);Password=$Password;"
 
-    Return @{ `
+    return @{ `
         WebServerName = $WebServerName; `
         WebServerCredential = $WebServerCredential; `
         ConnectionString = $ConnectionString; `
@@ -291,6 +353,8 @@ param(
     }
 
     Remove-PSSession $PSSession
+
+    return
 }
 
 function Get-Builds {
