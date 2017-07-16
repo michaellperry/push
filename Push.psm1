@@ -192,6 +192,18 @@ param(
     {
         $WebServerName = $WebServerNameAttribute.Value
     }
+
+    $WebServerCredential = Get-StoredCredential -Target $WebServerName
+    If ($WebServerCredential -eq $Null)
+    {
+        Write-Host "I'll need to be able to log in to the web server $WebServerName."
+        Write-Host
+
+        $WebServerUserName = Read-Host "User name"
+        $WebServerPassword = Read-Host "Password" -AsSecureString
+        Write-Host "Saving login credentials for $WebServerName."
+        $WebServerCredential = New-StoredCredential -Target $WebServerName -UserName $WebServerUserName -SecurePassword $WebServerPassword -Persist Enterprise
+    }
 }
 
 
