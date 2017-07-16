@@ -204,6 +204,10 @@ param(
         Write-Host "Saving login credentials for $WebServerName."
         $WebServerCredential = New-StoredCredential -Target $WebServerName -UserName $WebServerUserName -SecurePassword $WebServerPassword -Persist Enterprise
     }
+
+    Write-Host "The $EnvironmentName environment is registered. If this is a new environment, you might need to enable web server features:"
+    Write-Host
+    Write-Host "    Enable-WebServerFeatures $EnvironmentName"
 }
 
 
@@ -242,6 +246,39 @@ param(
         WebServerName = $WebServerName; `
         WebServerCredential = $WebServerCredential; `
     }
+}
+
+function Enable-WebServerFeatures {
+param(
+    [Parameter(Mandatory=$True)]
+    [string] $Environment
+)
+
+    $EnvironmentConfig = Get-EnvironmentConfig($Environment)
+
+    $WebServerFeatures = @( `
+      "Web-Default-Doc", `
+      "Web-Dir-Browsing", `
+      "Web-Http-Errors", `
+      "Web-Static-Content", `
+      "Web-Http-Logging", `
+      "Web-Stat-Compression", `
+      "Web-Filtering", `
+      "Web-Net-Ext45", `
+      "Web-Asp-Net45", `
+      "Web-ISAPI-Ext", `
+      "Web-ISAPI-Filter", `
+      "Web-Mgmt-Console", `
+      "NET-Framework-45-ASPNET")
+
+    $PSSessionOptions = New-PSSessionOption –SkipCACheck -SkipCNCheck
+    $PSSession = New-PSSession $EnvironmentConfig.WebServerName -credential $EnvironmentConfig.WebServerCredential -UseSSL -SessionOption $PSSessionOptions
+
+    Invoke-Command -Session $PSSession -ScriptBlock {
+        Install-WindowsFeature -Name $Using:WebServerFeatures
+    }
+
+    Remove-PSSession $PSSession
 }
 
 function Get-Builds {
@@ -335,4 +372,4 @@ param(
     # $WebConfigPath = "$pwd\DeploymentFiles\Deploy\Content\$($IisAppPath.Substring(0,1))_C\$($IisAppPath.Substring(3))\web.config"
 }
 
-Export-ModuleMember -Function Register-VSTS, Register-Environment, Get-Builds, Push-Build
+Export-ModuleMember -Function Register-VSTS, Register-Environment, Enable-WebServerFeatures, Get-Builds, Push-Build
