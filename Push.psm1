@@ -346,6 +346,9 @@ param(
     $ZipFile = Get-Item "$pwd\DeploymentFiles\WebDeploymentPackage\*.zip" | %{ $_.FullName }
     # [IO.Compression.ZipFile]::ExtractToDirectory($ZipFile, "$pwd\DeploymentFiles\Deploy")
 
+    $WebDeployPath = Get-ChildItem "HKLM:\SOFTWARE\Microsoft\IIS Extensions\MSDeploy\" | %{ $_.GetValue("InstallPath") }
+    $MsDeployExe = Join-Path $WebDeployPath "msdeploy.exe"
+
     $PSSessionOptions = New-PSSessionOption –SkipCACheck -SkipCNCheck
     $PSSession = New-PSSession $EnvironmentConfig.WebServerName -credential $EnvironmentConfig.WebServerCredential -UseSSL -SessionOption $PSSessionOptions
 
@@ -357,10 +360,12 @@ param(
         mkdir "C:\DeploymentFiles" | Out-Null
     }
     Copy-Item -Path "$pwd\DeploymentFiles\WebDeploymentPackage.zip" -Destination "C:\DeploymentFiles" -ToSession $PSSession
+    Copy-Item -Path $MsDeployExe -Destination "C:\DeploymentFiles" -ToSession $PSSession
     Invoke-Command -Session $PSSession -ScriptBlock {
         Add-Type -Assembly System.IO.Compression.FileSystem
         [IO.Compression.ZipFile]::ExtractToDirectory("C:\DeploymentFiles\WebDeploymentPackage.zip", "C:\DeploymentFiles")
         cd C:\DeploymentFiles\WebDeploymentPackage
+        $env:MSDeployPath = "C:\DeploymentFiles"
         & ".\$Using:WebDeployCommand" @( "/Y" )
     }
 
