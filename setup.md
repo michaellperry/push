@@ -199,7 +199,7 @@ Your project needs to produce a web deployment package. Righ-click on the web pr
 On the VSTS build, set the following MSBuild command line arguments:
 
 ```
-/p:DeployOnBuild=true /p:WebPublishMethod=Package /p:PackageAsSingleFile=true /p:SkipInvalidConfigurations=true /p:PackageLocation="$(build.artifactstagingdirectory)\\"
+/p:DeployOnBuild=true /p:PublishProfile=CustomProfile /p:OutputPath="$(Build.SourcesDirectory)\_build"
 ```
 
 Then add a step to the build that copies and publishes the web deploy package as a build artifact:
