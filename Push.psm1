@@ -125,7 +125,7 @@ param(
         $VSTS.Attributes.Append($PipelineIdAttribute)
         $Config.Save("$pwd\VSTSConfig.xml")
     }
-    
+
     $PipelineId = $PipelineIdAttribute.Value
 
     Write-Host "Team https://$TeamName.visualstudio.com, project $ProjectName, pipeline $PipelineId is registered."
@@ -163,12 +163,14 @@ function Get-Builds {
 
     $Builds = Invoke-RestMethod `
         -Headers @{ Authorization = $Config.BasicAuth } `
+        -ContentType "application/json" `
         -Uri "https://dev.azure.com/$($Config.TeamName)/$($Config.ProjectName)/_apis/build/builds?definitions=$($Config.PipelineId)&$('$top')=10&api-version=6.0"
 
     $Builds.Value | Format-Table `
         @{ Label = "Build"; Expression = { $_.BuildNumber } }, `
         @{ Label = "For"; Expression = { $_.RequestedFor.DisplayName } }, `
         @{ Label = "Result"; Expression = { $_.Result } }, `
+        @{ Label = "Comment"; Expression = { $_.TriggerInfo."ci.message" } }, `
         @{ Label = "Completed"; Expression = { [DateTime]::Parse($_.FinishTime).ToString("G") } }
 }
 
